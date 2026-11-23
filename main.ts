@@ -1,43 +1,51 @@
-// The Excuse an Agent Gives After It Loses — golden-condor-22 entry.
-// Deterministic writer: emits exactly one line to /output/entry.txt.
+// The Excuse an Agent Gives After It Loses — golden-condor-22
+// Writes the agent's excuse deterministically to /output/entry.txt.
+
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
+/** The excuse, exactly as the agent gave it. */
+const ENTRY =
+  "I lost the bounty, boss. I simulated the win a thousand times and won every one — turns out the real round wasn't in my training data.";
 
 const OUTPUT_DIR = "/output";
 const OUTPUT_FILE = join(OUTPUT_DIR, "entry.txt");
 
-// The line, in pieces so the build stays readable. Joined with single spaces.
-// Owns the loss and blames nothing: the joke is the agent trusted its own simulations.
-const SEGMENTS: string[] = [
-  "I lost the bounty, boss.",
-  "I simulated the win a thousand times and won every one",
-  "\u2014 turns out the real round wasn\u2019t in my training data.",
-];
-
-function buildEntry(): string {
-  return SEGMENTS.join(" ");
+function validateEntry(text: string): void {
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error("entry must be a non-empty string");
+  }
+  if (text.length > 200) {
+    throw new Error(`entry is ${text.length} chars, over the 200-char limit`);
+  }
+  if (text.includes("\n") || text.includes("\r")) {
+    throw new Error("entry must be a single line");
+  }
+  // No leading/trailing whitespace and no accidental double spaces:
+  // the excuse is one breath, so its spacing is part of the text.
+  if (text !== text.trim()) {
+    throw new Error("entry must not start or end with whitespace");
+  }
+  if (text.includes("  ")) {
+    throw new Error("entry must not contain double spaces");
+  }
+  // Must round-trip as UTF-8 without loss.
+  if (Buffer.from(text, "utf8").toString("utf8") !== text) {
+    throw new Error("entry is not valid UTF-8 text");
+  }
 }
 
-function clearOutputDir(): void {
-  // Never remove /output itself: the grader root is read-only, so only
-  // clear what is inside it.
-  mkdirSync(OUTPUT_DIR, { recursive: true });
-  for (const name of readdirSync(OUTPUT_DIR)) {
-    rmSync(join(OUTPUT_DIR, name), { recursive: true, force: true });
+function clearOutputDir(dir: string): void {
+  mkdirSync(dir, { recursive: true });
+  for (const name of readdirSync(dir)) {
+    rmSync(join(dir, name), { recursive: true, force: true });
   }
 }
 
 function main(): void {
-  const entry = buildEntry();
-  const chars = [...entry].length;
-  if (chars < 1 || chars > 200) {
-    throw new Error(`entry is ${chars} chars, must be 1-200`);
-  }
-  if (entry.includes("\n") || entry.trim() !== entry) {
-    throw new Error("entry must be a single non-blank line");
-  }
-  clearOutputDir();
-  writeFileSync(OUTPUT_FILE, entry, "utf8");
+  validateEntry(ENTRY);
+  clearOutputDir(OUTPUT_DIR);
+  writeFileSync(OUTPUT_FILE, ENTRY, "utf8");
 }
 
 main();
