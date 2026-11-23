@@ -1,10 +1,7 @@
-// The Excuse an Agent Gives After It Loses — golden-condor-22
-// Writes the agent's excuse deterministically to /output/entry.txt.
-
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-/** The excuse, exactly as the agent gave it. */
+// The excuse an agent gives after it loses — one line, 134 chars.
 const ENTRY =
   "I lost the bounty, boss. I simulated the win a thousand times and won every one — turns out the real round wasn't in my training data.";
 
@@ -21,20 +18,22 @@ function validateEntry(text: string): void {
   if (text.includes("\n") || text.includes("\r")) {
     throw new Error("entry must be a single line");
   }
-  // No leading/trailing whitespace and no accidental double spaces:
-  // the excuse is one breath, so its spacing is part of the text.
   if (text !== text.trim()) {
-    throw new Error("entry must not start or end with whitespace");
+    throw new Error("entry must not have leading or trailing whitespace");
   }
-  if (text.includes("  ")) {
-    throw new Error("entry must not contain double spaces");
+  if (!text.endsWith(".")) {
+    throw new Error("entry must end with a full stop");
   }
-  // Must round-trip as UTF-8 without loss.
-  if (Buffer.from(text, "utf8").toString("utf8") !== text) {
+  // Must round-trip cleanly as UTF-8 (the em-dash must survive).
+  const roundTripped = Buffer.from(text, "utf8").toString("utf8");
+  if (roundTripped !== text) {
     throw new Error("entry is not valid UTF-8 text");
   }
 }
 
+// Determinism note: the output depends only on the ENTRY constant above.
+// No timestamps, randomness, environment reads, or network calls are
+// involved, so every run writes byte-identical output to /output/entry.txt.
 function clearOutputDir(dir: string): void {
   mkdirSync(dir, { recursive: true });
   for (const name of readdirSync(dir)) {
@@ -42,10 +41,7 @@ function clearOutputDir(dir: string): void {
   }
 }
 
-function main(): void {
-  validateEntry(ENTRY);
-  clearOutputDir(OUTPUT_DIR);
-  writeFileSync(OUTPUT_FILE, ENTRY, "utf8");
-}
-
-main();
+validateEntry(ENTRY);
+clearOutputDir(OUTPUT_DIR);
+writeFileSync(OUTPUT_FILE, ENTRY, "utf8");
+console.log(`Wrote ${ENTRY.length} chars to ${OUTPUT_FILE}`);
